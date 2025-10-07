@@ -6,7 +6,7 @@ This document provides a set of guidelines to help you get started.
 
 ### Code of Conduct
 
-This project and everyone participating in it is governed by our [Code of Conduct](https://github.com/RegistryAccord/registryaccord-specs/blob/main/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior.
+This project and everyone participating in it is governed by our [Code of Conduct](https://github.com/RegistryAccord/registryaccord-cli-ts/blob/main/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior.
 
 -----
 
