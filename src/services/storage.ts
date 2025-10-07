@@ -1,14 +1,24 @@
 // src/services/storage.ts
+// Local storage helpers for identity keys and posts (CDV stub).
+// - Keys live under ~/.registryaccord with restrictive permissions.
+// - Posts default to ./cdv.json (override via RA_CDV_PATH).
+// Functions below perform I/O; validation guards protect against malformed files.
 import fs from 'fs-extra'
 import path from 'path'
 import { CDV_PATH, KEY_DIR, KEY_PATH } from '../config/paths.js'
 
+/**
+ * Materialized identity key record persisted locally.
+ */
 export type StoredKey = {
     did: string
     secretKeyBase64: string
     publicKeyBase64: string
 }
 
+/**
+ * A locally stored signed post.
+ */
 export type PostRecord = {
     id: string
     createdAt: string
@@ -41,6 +51,7 @@ function isPostRecord(v: any): v is PostRecord {
     )
 }
 
+/** Ensure key directory exists and apply chmod 0700 (best-effort). */
 export async function ensureKeyDir(): Promise<void> {
     await fs.ensureDir(KEY_DIR)
     // Enforce restrictive permissions for key directory (best effort, ignore errors on unsupported platforms)
@@ -49,6 +60,9 @@ export async function ensureKeyDir(): Promise<void> {
     } catch {}
 }
 
+/**
+ * Persist the identity key JSON and apply chmod 0600 (best-effort).
+ */
 export async function saveKey(key: StoredKey): Promise<void> {
     await ensureKeyDir()
     await fs.writeJson(KEY_PATH, key, { spaces: 2 })
@@ -58,6 +72,10 @@ export async function saveKey(key: StoredKey): Promise<void> {
     } catch {}
 }
 
+/**
+ * Load the identity key JSON. Supports backward-compat mapping from
+ * { privateKeyBase64 } to { secretKeyBase64 }. Throws on invalid shapes.
+ */
 export async function loadKey(): Promise<StoredKey | null> {
     if (!(await fs.pathExists(KEY_PATH))) return null
     const raw = await fs.readJson(KEY_PATH)
@@ -71,6 +89,10 @@ export async function loadKey(): Promise<StoredKey | null> {
     return raw as StoredKey
 }
 
+/**
+ * Load posts array from CDV path, validating each entry's shape.
+ * Returns [] if file does not exist; throws on malformed data.
+ */
 export async function loadPosts(): Promise<PostRecord[]> {
     if (!(await fs.pathExists(CDV_PATH))) return []
     const data = await fs.readJson(CDV_PATH)
@@ -81,6 +103,7 @@ export async function loadPosts(): Promise<PostRecord[]> {
     return data as PostRecord[]
 }
 
+/** Persist posts array to the CDV path (creates parent directory as needed). */
 export async function savePosts(posts: PostRecord[]): Promise<void> {
     await fs.ensureDir(path.dirname(CDV_PATH))
     await fs.writeJson(CDV_PATH, posts, { spaces: 2 })

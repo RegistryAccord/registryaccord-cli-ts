@@ -1,4 +1,7 @@
 // src/commands/post/create.ts
+// Command: Create a signed post using the local identity and append to the CDV stub.
+// - Uses native oclif JSON mode for `--json`.
+// - Fails if no identity is present.
 import { Args, Command } from '@oclif/core'
 import chalk from 'chalk'
 import { v4 as uuidv4 } from 'uuid'
@@ -21,6 +24,7 @@ export default class PostCreate extends Command {
 
     async run(): Promise<void> {
         const { args } = await this.parse(PostCreate)
+        // Require an existing identity
         const key = await loadKey()
         if (!key) {
             this.error('No identity found. Run `ra identity:create` first.', { exit: 1 })
@@ -36,10 +40,12 @@ export default class PostCreate extends Command {
             did: key!.did,
         }
 
+        // Append new post to local CDV stub
         const posts = await loadPosts()
         posts.push(post)
         await savePosts(posts)
 
+        // Return machine-readable output when --json is used
         if (this.jsonEnabled()) {
             this.logJson({ id: post.id, created: true })
             return

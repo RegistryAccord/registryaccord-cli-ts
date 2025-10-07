@@ -1,4 +1,7 @@
 // src/commands/post/list.ts
+// Command: List posts from the local CDV stub and verify their signatures.
+// - Uses native oclif JSON mode for `--json`.
+// - Emits concise human-readable output by default.
 import { Command } from '@oclif/core'
 import chalk from 'chalk'
 import { loadPosts } from '../../services/storage.js'
@@ -19,6 +22,7 @@ export default class PostList extends Command {
         const { flags } = await this.parse(PostList)
         const posts = await loadPosts()
         if (this.jsonEnabled()) {
+            // Annotate each post with a signature verification result
             const annotated = await Promise.all(
                 posts.map(async p => ({ ...p, valid: await verifyMessage(p.text, p.signatureBase64, p.publicKeyBase64) })),
             )

@@ -1,4 +1,7 @@
 // src/commands/identity/create.ts
+// Command: Create a new identity (Ed25519) and persist it locally.
+// - Uses native oclif JSON mode for `--json`.
+// - Enforces non-zero exit when identity already exists without --force.
 import { Command, Flags } from '@oclif/core'
 import chalk from 'chalk'
 import { generateKeypair } from '../../services/crypto.js'
@@ -20,6 +23,7 @@ export default class IdentityCreate extends Command {
     async run(): Promise<void> {
         const { flags } = await this.parse(IdentityCreate)
 
+        // Refuse to overwrite unless --force is provided
         const existing = await loadKey()
         if (existing && !flags.force) {
             this.error('An identity already exists; re-run with --force to overwrite', { exit: 2 })
@@ -32,6 +36,7 @@ export default class IdentityCreate extends Command {
             publicKeyBase64: kp.publicKeyBase64,
         })
 
+        // Return machine-readable output when --json is used
         if (this.jsonEnabled()) {
             this.logJson({ did: kp.did, saved: true })
             return
