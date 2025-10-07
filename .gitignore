@@ -1,0 +1,20 @@
+# .gitignore
+node_modules
+dist
+.env
+npm-debug.log
+cdv.json
+
+# Generated files
+oclif.manifest.json
+
+# OS/editor cruft
+.DS_Store
+.vscode/
+.idea/
+
+# Test artifacts
+coverage/
+
+# Lint/cache
+.eslintcache

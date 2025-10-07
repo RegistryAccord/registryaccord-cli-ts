@@ -1,0 +1,39 @@
+# docker-compose.yml
+version: "3.8"
+
+services:
+  ra:
+    build: .
+    image: registryaccord/cli:dev
+    container_name: ra
+    environment:
+      - RA_CDV_PATH=/data/cdv.json
+    volumes:
+      - ra_keys:/home/appuser/.registryaccord
+      - ./cdv.json:/data/cdv.json
+    depends_on:
+      - nats
+      - db
+
+  nats:
+    image: nats:latest
+    container_name: nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  db:
+    image: postgres:16-alpine
+    container_name: registryaccord-db
+    environment:
+      - POSTGRES_USER=registryaccord
+      - POSTGRES_PASSWORD=registryaccord
+      - POSTGRES_DB=registryaccord
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  ra_keys:
+  pgdata:

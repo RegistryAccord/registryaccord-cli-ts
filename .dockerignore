@@ -1,0 +1,13 @@
+# .dockerignore
+# Ignore heavy/unneeded context while keeping build inputs.
+node_modules
+dist
+.git
+.gitignore
+npm-debug.log*
+.DS_Store
+.vscode
+.idea
+coverage
+test
+docker-compose.yml

@@ -1,0 +1,54 @@
+{
+    "name": "registryaccord-cli",
+    "version": "0.1.0",
+    "description": "RegistryAccord PoC CLI (oclif, TypeScript)",
+    "license": "MIT",
+    "type": "module",
+    "files": [
+        "dist",
+        "bin",
+        "oclif.manifest.json",
+        "README.md",
+        "LICENSE"
+    ],
+    "bin": {
+        "registryaccord": "dist/bin/run.js",
+        "ra": "dist/bin/run.js"
+    },
+    "scripts": {
+        "clean": "rimraf dist",
+        "build": "tsc -p tsconfig.json && oclif manifest",
+        "dev": "node bin/dev.js",
+        "start": "node dist/bin/run.js",
+        "test": "vitest run",
+        "format": "prettier -w .",
+        "lint": "eslint ."
+    },
+    "dependencies": {
+        "@noble/ed25519": "^3.0.0",
+        "@oclif/core": "^3.26.0",
+        "bs58": "^5.0.0",
+        "chalk": "^5.3.0",
+        "fs-extra": "^11.2.0",
+        "uuid": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
+        "@types/node": "^20.12.8",
+        "@types/uuid": "^9.0.8",
+        "eslint": "^8.57.0",
+        "oclif": "^4.0.0",
+        "prettier": "^3.2.5",
+        "rimraf": "^5.0.5",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.4.5",
+        "vitest": "^1.6.0"
+    },
+    "oclif": {
+        "bin": "registryaccord",
+        "dirname": "registryaccord",
+        "commands": "./dist/commands",
+        "topicSeparator": ":",
+        "plugins": []
+    }
+}

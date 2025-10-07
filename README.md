@@ -123,6 +123,64 @@ For more information on the vision, architecture, and economic model of the prot
 
 This project is in an early, formative stage. We welcome feedback and contributions\! Please see our main contribution guidelines and Code of Conduct in the `registryaccord-specs` repository.
 
+### Docker usage (standalone image)
+
+If you prefer not to use docker-compose, you can build and run the CLI as a single Docker image:
+
+1. Build the image
+
+```bash
+docker build -t registryaccord-cli .
+```
+
+2. Run commands
+
+Persist keys to your host (`~/.registryaccord`) and use your current folder for posts (`./cdv.json`):
+
+```bash
+# Create identity (keys mapped to host)
+docker run --rm \
+  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
+  registryaccord-cli identity:create
+
+# Create a post (cdv.json in current directory)
+docker run --rm \
+  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
+  -v "$PWD:/workspace" -w /workspace \
+  registryaccord-cli post:create "hello from docker"
+
+# List posts as JSON
+docker run --rm \
+  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
+  -v "$PWD:/workspace" -w /workspace \
+  registryaccord-cli post:list --json
+
+# Optional: use a custom posts file
+docker run --rm \
+  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
+  -v "$PWD:/workspace" -w /workspace \
+  -e RA_CDV_PATH=/workspace/my-posts.json \
+  registryaccord-cli post:list --json
+```
+
+The image runs as a non-root "node" user; mounted files will not be owned by root.
+
+### Testing
+
+Run unit tests with Vitest:
+
+```bash
+npm test
+```
+
+Current tests cover `src/services/crypto.ts` and `src/services/storage.ts`. Command smoke tests can be added later.
+
+### Security
+
+- Keys are stored under `~/.registryaccord/key.json` with restrictive permissions (dir 0700, file 0600) enforced by `src/services/storage.ts`.
+- Commands avoid logging secrets/private keys. Use `--json` for machine-readable outputs; avoid sharing raw secret material.
+- You can relocate posts by setting `RA_CDV_PATH`, but identity keys always live under your home directory.
+
 ### License
 
 This project is licensed under the MIT License.

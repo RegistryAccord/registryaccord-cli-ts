@@ -1,0 +1,46 @@
+# Windsurf Rules for RegistryAccord CLI
+
+project_scope:
+  - This is an oclif-based TypeScript CLI for the RegistryAccord protocol PoC.
+  - Commands are grouped by domain and follow oclif subcommand conventions.
+
+stack_and_conventions:
+  - Language: TypeScript (ES2022), ESM modules preferred.
+  - CLI framework: oclif with core plugins for help and command discovery.
+  - Testing: unit tests for command logic; avoid network in unit tests.
+
+folder_structure:
+  - src/commands/**: oclif commands; one file per command or topic.
+  - src/services/**: domain logic (crypto, storage, messaging).
+  - src/config/**: configuration loading and validation.
+  - src/lib/**: small shared helpers; keep pure and testable.
+  - test/**: tests mirroring src layout.
+
+command_design:
+  - Keep command files thin: parse flags/args, delegate to services.
+  - Shared flags live in utils and are reused across commands.
+  - Prefer explicit flags over prompts for reproducibility.
+
+error_handling:
+  - Fail fast with informative error messages and non-zero exit codes.
+  - Validate inputs/flags early; return structured errors from services.
+
+logging_and_output:
+  - Default to concise, single-line outputs; add --json for machine-readable output.
+  - Avoid noisy logs; reserve verbose detail for --verbose.
+
+security_basics:
+  - Never log secrets or private keys.
+  - Validate file permissions for key material.
+
+testing_policy:
+  - Unit-test services; use smoke tests for commands.
+  - Mock external IO (FS, network) in unit tests.
+
+git_and_docs:
+  - Keep commands self-documenting via flags and descriptions.
+  - Update docs/ARCHITECTURE.md and ADRs when structure changes.
+
+windsurf_task_policy:
+  - When adding a command: scaffold via oclif generator, create service, add tests, update docs.
+  - When editing: preserve public flags/args unless ADR states otherwise.
