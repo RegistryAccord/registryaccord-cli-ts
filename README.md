@@ -1,9 +1,3 @@
-Of course. The `README.md` for your CLI is the front door for developers. It needs to be clear, concise, and get them running the code as quickly as possible.
-
-Here is the recommended content for the `README.md` file in your `registryaccord-cli-ts` repository, formatted for you to copy.
-
------
-
 # RegistryAccord CLI
 
 The official Proof of Concept (PoC) Command Line Interface (CLI) for the RegistryAccord protocol.
