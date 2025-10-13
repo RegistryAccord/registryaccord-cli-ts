@@ -6,11 +6,18 @@ services:
     build: .
     image: registryaccord/cli:dev
     container_name: ra
+    env_file:
+      - .env
     environment:
-      - RA_CDV_PATH=/data/cdv.json
+      - RA_IDENTITY_BASE_URL=${RA_IDENTITY_BASE_URL-http://localhost:8081}
+      - RA_CDV_BASE_URL=${RA_CDV_BASE_URL-http://localhost:8082}
+      - RA_GATEWAY_BASE_URL=${RA_GATEWAY_BASE_URL-http://localhost:8083}
+      - RA_ENV=${RA_ENV-development}
+      - RA_OUTPUT=${RA_OUTPUT-table}
     volumes:
-      - ra_keys:/home/appuser/.registryaccord
-      - ./cdv.json:/data/cdv.json
+      - ~/.registryaccord:/home/node/.registryaccord
+      - .:/workspace
+    working_dir: /workspace
     depends_on:
       - nats
       - db
@@ -35,5 +42,4 @@ services:
       - pgdata:/var/lib/postgresql/data
 
 volumes:
-  ra_keys:
   pgdata:

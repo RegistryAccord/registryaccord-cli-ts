@@ -6,11 +6,17 @@ The official Proof of Concept (PoC) Command Line Interface (CLI) for the Registr
 
 ### What is This?
 
-This repository contains the source code for the official CLI for the RegistryAccord protocol. This tool allows developers to interact with the core functions of the protocol, such as creating identities and publishing content, directly from the terminal.
+This repository contains the source code for the official CLI for the RegistryAccord protocol. This tool allows developers to interact with the core functions of the protocol, such as creating identities, managing sessions, and publishing content, directly from the terminal.
+
+### Documentation
+
+- README: quickstart for Docker and Node; examples for each command; JSON samples; troubleshooting.
+- Examples directory: ready‑to‑run scripts (bash/PowerShell) for demo commands. See [examples/README.md](examples/README.md) for details.
+- DECISIONS (ADRs): Architectural Decision Records documenting key design choices. See [docs/DECISIONS/](docs/DECISIONS/) for details.
 
 ### Current Status
 
-This CLI is an early-stage **Proof of Concept** built to validate the core technical ideas of the protocol. It is intended for early developers and advisors for feedback and is **not production-ready**. The primary goal is to provide a tangible way to "touch and feel" the protocol's core concepts of sovereign identity and content ownership.
+This CLI implements Phase 1 requirements for the RegistryAccord protocol, providing a complete set of commands for identity management, content creation, and content discovery.
 
 ### Prerequisites
 
@@ -34,7 +40,7 @@ cd registryaccord-cli-ts
 
 **2. Start the local development environment:**
 
-This single command will build the CLI image and start the local services it depends on (a minimal CDV stub, a database, and a NATS message bus).
+This single command will build the CLI image and start the local services it depends on.
 
 ```bash
 docker-compose up --build -d
@@ -54,11 +60,11 @@ docker-compose run --rm ra --help
 
 ### Usage & Available Commands
 
-Here are the core commands available in the PoC:
+#### **Identity Management**
 
-#### **`ra identity:create`**
+##### **`ra identity:create`**
 
-Creates a new self-sovereign identity. This generates a cryptographic keypair and saves it locally to a mounted volume (`~/.registryaccord/key.json`).
+Generate a new DID (plc) keypair locally; store keys under `~/.registryaccord/key.json` with secure permissions.
 
 **Usage:**
 
@@ -66,24 +72,136 @@ Creates a new self-sovereign identity. This generates a cryptographic keypair an
 docker-compose run --rm ra identity:create
 ```
 
-#### **`ra post:create [TEXT]`**
+##### **`ra session:nonce --did <did> --aud <aud>`**
 
-Creates and signs a new post with your identity. The post is saved to your local Creator Data Vault (CDV) stub (`cdv.json`).
+Fetch a short-lived nonce from Identity for the given DID and audience.
 
 **Usage:**
 
 ```bash
-docker-compose run --rm ra post:create "This is my first post on the RegistryAccord protocol."
+docker-compose run --rm ra session:nonce --did did:plc:12345 --aud cdv
 ```
 
-#### **`ra post:list`**
+##### **`ra session:issue --did <did> --aud <aud> --nonce <nonce>`**
 
-Lists all posts from your local CDV and verifies their signatures against your public key.
+Sign the nonce with the local private key; request a JWT from Identity; cache token and expiry under `~/.registryaccord/session.json`.
 
 **Usage:**
 
 ```bash
-docker-compose run --rm ra post:list
+docker-compose run --rm ra session:issue --did did:plc:12345 --aud cdv --nonce abc123
+```
+
+#### **Content Management**
+
+##### **`ra post:create --text "<content>" [--media <path>] --did <did>`**
+
+Create a record via CDV with enforced schema and author DID from the current session.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra post:create --text "Hello, RegistryAccord!" --did did:plc:12345
+```
+
+With media:
+
+```bash
+docker-compose run --rm ra post:create --text "Check out this image!" --media ./photo.jpg --did did:plc:12345
+```
+
+##### **`ra post:list --did <did> [--collection <nsid>] [--limit <n>] [--cursor <c>] [--since <ts>] [--until <ts>]`**
+
+Page through CDV records with deterministic cursors.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra post:list --did did:plc:12345 --limit 10
+```
+
+#### **Content Discovery**
+
+##### **`ra feed:following --did <viewerDid> [--limit <n>] [--cursor <c>]`**
+
+Get feed of posts from followed users.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra feed:following --did did:plc:12345 --limit 20
+```
+
+##### **`ra feed:author --did <authorDid> [--limit <n>] [--cursor <c>]`**
+
+Get feed of posts by a specific author.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra feed:author --did did:plc:12345 --limit 20
+```
+
+##### **`ra search --q "<query>" [--type post|profile|all] [--limit <n>] [--cursor <c>]`**
+
+Search for posts, profiles, or content.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra search --q "RegistryAccord" --type post --limit 10
+```
+
+##### **`ra profile:get --did <did>`**
+
+Get profile information for a DID.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra profile:get --did did:plc:12345
+```
+
+#### **Utilities**
+
+##### **`ra whoami`**
+
+Print current DID and token expiry if a session is active.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra whoami
+```
+
+##### **`ra version`**
+
+Print CLI, API targets, and schema versions in use.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra version
+```
+
+##### **`ra config`**
+
+Print effective configuration (redact secrets).
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra config
+```
+
+##### **`ra --json`**
+
+Enable JSON output for machine-readable outputs.
+
+**Usage:**
+
+```bash
+docker-compose run --rm ra post:list --did did:plc:12345 --json
 ```
 
 -----
@@ -95,22 +213,26 @@ This demonstrates the core "happy path" of the protocol:
 1.  **Create your identity:**
     ```bash
     docker-compose run --rm ra identity:create
-    # Output will show your new DID and that your key has been saved.
     ```
-2.  **Create your first post:**
+2.  **Get a session nonce:**
     ```bash
-    docker-compose run --rm ra post:create "Hello, sovereign web."
-    # Output will confirm the post was created and signed.
+    docker-compose run --rm ra session:nonce --did YOUR_DID --aud cdv
     ```
-3.  **Create a second post:**
+3.  **Issue a session token:**
     ```bash
-    docker-compose run --rm ra post:create "Content ownership is the future."
+    docker-compose run --rm ra session:issue --did YOUR_DID --aud cdv --nonce YOUR_NONCE
     ```
-4.  **List and verify your content:**
+4.  **Create a post:**
     ```bash
-    docker-compose run --rm ra post:list
-    # Output will show both of your posts with a checkmark indicating the signatures are valid.
+    docker-compose run --rm ra post:create --text "Hello, sovereign web." --did YOUR_DID
     ```
+5.  **List your posts:**
+    ```bash
+    docker-compose run --rm ra post:list --did YOUR_DID --limit 10
+    ```
+
+For a ready-to-run version of this demo, see [examples/demo.sh](examples/demo.sh).
+Additional examples for specific command categories are available in the [examples](examples/) directory.
 
 ### Learn More
 
@@ -121,7 +243,7 @@ For more information on the vision, architecture, and economic model of the prot
 
 ### Contributing
 
-This project is in an early, formative stage. We welcome feedback and contributions\! Please see our main contribution guidelines and Code of Conduct in the `registryaccord-specs` repository.
+We welcome feedback and contributions! Please see our main contribution guidelines and Code of Conduct in the `registryaccord-specs` repository.
 
 ### Docker usage (standalone image)
 
@@ -135,35 +257,21 @@ docker build -t registryaccord-cli .
 
 2. Run commands
 
-Persist keys to your host (`~/.registryaccord`) and use your current folder for posts (`./cdv.json`):
-
 ```bash
-# Create identity (keys mapped to host)
-docker run --rm \
-  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
-  registryaccord-cli identity:create
-
-# Create a post (cdv.json in current directory)
-docker run --rm \
-  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
-  -v "$PWD:/workspace" -w /workspace \
-  registryaccord-cli post:create "hello from docker"
-
-# List posts as JSON
-docker run --rm \
-  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
-  -v "$PWD:/workspace" -w /workspace \
-  registryaccord-cli post:list --json
-
-# Optional: use a custom posts file
-docker run --rm \
-  -v "$HOME/.registryaccord:/home/node/.registryaccord" \
-  -v "$PWD:/workspace" -w /workspace \
-  -e RA_CDV_PATH=/workspace/my-posts.json \
-  registryaccord-cli post:list --json
+docker run --rm registryaccord-cli --help
 ```
 
-The image runs as a non-root "node" user; mounted files will not be owned by root.
+### Makefile Commands
+
+The project includes a Makefile with convenient commands:
+
+```bash
+make build     # Build the CLI Docker image
+make ra ARGS="..."  # Run arbitrary CLI command
+make demo      # Execute the five-minute demo script
+make test      # Run unit tests
+make lint      # Lint the code
+```
 
 ### Testing
 
@@ -173,13 +281,12 @@ Run unit tests with Vitest:
 npm test
 ```
 
-Current tests cover `src/services/crypto.ts` and `src/services/storage.ts`. Command smoke tests can be added later.
-
 ### Security
 
-- Keys are stored under `~/.registryaccord/key.json` with restrictive permissions (dir 0700, file 0600) enforced by `src/services/storage.ts`.
-- Commands avoid logging secrets/private keys. Use `--json` for machine-readable outputs; avoid sharing raw secret material.
-- You can relocate posts by setting `RA_CDV_PATH`, but identity keys always live under your home directory.
+- Keys are stored only on the local machine under `~/.registryaccord` with secure permissions
+- Sessions are cached with expiry information
+- Commands avoid logging secrets/private keys
+- Use `--json` for machine-readable outputs; avoid sharing raw secret material
 
 ### License
 

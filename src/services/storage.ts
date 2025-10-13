@@ -57,7 +57,9 @@ export async function ensureKeyDir(): Promise<void> {
     // Enforce restrictive permissions for key directory (best effort, ignore errors on unsupported platforms)
     try {
         await fs.chmod(KEY_DIR, 0o700)
-    } catch {}
+    } catch {
+        // Ignore permission errors on platforms that don't support chmod
+    }
 }
 
 /**
@@ -69,7 +71,9 @@ export async function saveKey(key: StoredKey): Promise<void> {
     // Enforce restrictive permissions for key file (best effort)
     try {
         await fs.chmod(KEY_PATH, 0o600)
-    } catch {}
+    } catch {
+        // Ignore permission errors on platforms that don't support chmod
+    }
 }
 
 /**
