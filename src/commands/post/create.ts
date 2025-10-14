@@ -4,6 +4,8 @@
 import { Command, Flags } from '@oclif/core'
 import { fetchJSON, joinURL } from '../../lib/http.js'
 import { resolveBases } from '../../lib/config.js'
+import { loadKey } from '../../services/storage.js'
+import { signMessage } from '../../services/crypto.js'
 import { CDV_BASE_FLAG, JSON_FLAG, TIMEOUT_MS_FLAG, VERBOSE_FLAG } from '../../utils/flags.js'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
@@ -24,6 +26,8 @@ type FinalizeOut = { cid: string; mimeType: string; size: number }
 type PostCreateBody = { 
   text: string; 
   authorDid: string; 
+  signatureBase64: string;
+  publicKeyBase64: string;
   media?: MediaReference 
 }
 
@@ -129,11 +133,36 @@ export default class PostCreate extends Command {
             }
         }
         
+        // Load the author's key
+        const key = await loadKey()
+        if (!key) {
+            this.error('No identity key found. Run `ra identity:create` first.', {
+                code: 'MISSING_KEY',
+                exit: 2, // validation/usage error
+            })
+        }
+        
+        // Verify the key matches the provided author DID
+        if (key.did !== flags.authorDid) {
+            this.error('Loaded key DID does not match provided author DID', {
+                code: 'DID_MISMATCH',
+                exit: 2, // validation/usage error
+            })
+        }
+        
+        // Create a message to sign (text + media reference if present)
+        const messageToSign = flags.text + (mediaRef ? mediaRef.cid : '')
+        
+        // Sign the post content with the author's private key
+        const signatureBase64 = await signMessage(messageToSign, key.secretKeyBase64)
+        
         // Create the post
         const url = joinURL(bases.cdvBase, '/v1/repo/record')
         const requestBody: PostCreateBody = { 
             text: flags.text, 
             authorDid: flags.authorDid,
+            signatureBase64: signatureBase64,
+            publicKeyBase64: key.publicKeyBase64,
             media: mediaRef
         }
         

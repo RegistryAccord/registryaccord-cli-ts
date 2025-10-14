@@ -4,16 +4,13 @@
 import { Command } from '@oclif/core'
 import { fetchJSON, joinURL } from '../../lib/http.js'
 import { resolveBases } from '../../lib/config.js'
+import { saveKey } from '../../services/storage.js'
+import { generateKeypair } from '../../services/crypto.js'
 import { IDENTITY_BASE_FLAG, JSON_FLAG, TIMEOUT_MS_FLAG, VERBOSE_FLAG } from '../../utils/flags.js'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
 
 /** Response type from the identity creation API */
 type CreateOut = { did: string }
 
-/** Local keypair structure for storage */
-type KeyPair = { did: string; publicKey: string; privateKey: string }
 
 /**
  * Create a new identity by:
@@ -58,19 +55,22 @@ export default class IdentityCreate extends Command {
             this.log('[debug] Starting identity creation process')
         }
         
-        // Generate keypair (simplified for this example)
-        // In a real implementation, this would use proper cryptographic libraries
-        const keyPair = this.generateKeyPair()
+        // Generate keypair using proper cryptographic libraries
+        const keypair = await generateKeypair()
         
         if (flags.verbose) {
-            this.log(`[debug] Generated keypair for DID: ${keyPair.did}`)
+            this.log(`[debug] Generated keypair for DID: ${keypair.did}`)
         }
         
         // Store keys securely
-        const keyPath = this.storeKeyPair(keyPair)
+        await saveKey({
+            did: keypair.did,
+            secretKeyBase64: keypair.secretKeyBase64,
+            publicKeyBase64: keypair.publicKeyBase64
+        })
         
         if (flags.verbose) {
-            this.log(`[debug] Stored keys at: ${keyPath}`)
+            this.log(`[debug] Stored keys at: ~/.registryaccord/key.json`)
         }
         
         // Register with identity service
@@ -82,12 +82,12 @@ export default class IdentityCreate extends Command {
         
         try {
             if (flags.verbose) {
-                this.log(`[debug] POST ${url} timeout=${flags.timeoutMs ?? 'default'} body=${JSON.stringify({ publicKey: keyPair.publicKey })}`)
+                this.log(`[debug] POST ${url} timeout=${flags.timeoutMs ?? 'default'} body=${JSON.stringify({ publicKey: keypair.publicKeyBase64 })}`)
             }
             
             const out = await fetchJSON<CreateOut>(url, {
                 method: 'POST',
-                body: JSON.stringify({ publicKey: keyPair.publicKey }),
+                body: JSON.stringify({ publicKey: keypair.publicKeyBase64 }),
                 headers: { 'Content-Type': 'application/json' },
                 timeoutMs: flags.timeoutMs,
             })
@@ -99,13 +99,13 @@ export default class IdentityCreate extends Command {
             if (flags.json) {
                 this.log(JSON.stringify({
                     did: out.did,
-                    publicKeyFingerprint: keyPair.publicKey.substring(0, 32) + '...',
-                    keyPath: keyPath
+                    publicKeyFingerprint: keypair.publicKeyBase64.substring(0, 32) + '...',
+                    keyPath: '~/.registryaccord/key.json'
                 }))
             } else {
                 this.log(`DID: ${out.did}`)
-                this.log(`Public Key Fingerprint: ${keyPair.publicKey.substring(0, 32)}...`)
-                this.log(`Key stored at: ${keyPath}`)
+                this.log(`Public Key Fingerprint: ${keypair.publicKeyBase64.substring(0, 32)}...`)
+                this.log(`Key stored at: ~/.registryaccord/key.json`)
             }
         } catch (err: any) {
             // Add correlation ID for troubleshooting if available
@@ -196,63 +196,5 @@ export default class IdentityCreate extends Command {
         }
     }
     
-    /**
-     * Generate a new keypair for identity creation
-     * 
-     * Note: This is a simplified implementation for demonstration purposes.
-     * A production implementation would use proper cryptographic libraries like noble-ed25519.
-     * 
-     * @returns Generated keypair with DID
-     */
-    private generateKeyPair(): KeyPair {
-        // This is a simplified implementation for demonstration
-        // A real implementation would use proper cryptographic libraries like noble-ed25519
-        const did = 'did:plc:' + Math.random().toString(36).substring(2, 15)
-        const publicKey = 'public-key-' + Math.random().toString(36).substring(2, 15)
-        const privateKey = 'private-key-' + Math.random().toString(36).substring(2, 15)
-        return { did, publicKey, privateKey }
-    }
-    
-    /**
-     * Store the generated keypair securely on the local filesystem
-     * 
-     * Security measures:
-     * - Directory permissions set to 0o700 (read/write/execute for owner only)
-     * - File permissions set to 0o600 (read/write for owner only)
-     * - JSON formatting for readability
-     * 
-     * @param keyPair - The keypair to store
-     * @returns Path where the keypair was stored
-     * @throws Error if there are file system permission issues
-     */
-    private storeKeyPair(keyPair: KeyPair): string {
-        const registryAccordDir = path.join(os.homedir(), '.registryaccord')
-        
-        // Create directory with secure permissions if it doesn't exist
-        if (!fs.existsSync(registryAccordDir)) {
-            if (process.env.VERBOSE) {
-                this.log(`[debug] Creating directory: ${registryAccordDir}`)
-            }
-            fs.mkdirSync(registryAccordDir, { mode: 0o700 })
-        }
-        
-        // Ensure directory has correct permissions
-        fs.chmodSync(registryAccordDir, 0o700)
-        
-        const keyPath = path.join(registryAccordDir, 'key.json')
-        
-        if (process.env.VERBOSE) {
-            this.log(`[debug] Writing key file: ${keyPath}`)
-        }
-        
-        // Write key file with secure permissions
-        fs.writeFileSync(keyPath, JSON.stringify({
-            did: keyPair.did,
-            publicKey: keyPair.publicKey,
-            privateKey: keyPair.privateKey
-        }, null, 2), { mode: 0o600 })
-        
-        return keyPath
-    }
 }
 

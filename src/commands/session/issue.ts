@@ -5,13 +5,15 @@ import { Command } from '@oclif/core'
 import { fetchJSON, joinURL } from '../../lib/http.js'
 import { resolveBases } from '../../lib/config.js'
 import { storeSession } from '../../lib/session.js'
+import { loadKey } from '../../services/storage.js'
+import { signMessage } from '../../services/crypto.js'
 import { IDENTITY_BASE_FLAG, JSON_FLAG, VERBOSE_FLAG, DID_FLAG, AUD_FLAG, NONCE_FLAG } from '../../utils/flags.js'
 
 /** Response type from the session issue API */
 type SessionIssueOut = { jwt: string; exp: string; aud: string; sub: string }
 
 /** Request body for session issue */
-type SessionIssueRequest = { did: string; aud: string; nonce: string }
+type SessionIssueRequest = { did: string; aud: string; nonce: string; signature: string }
 
 /**
  * Issue a new session by signing a nonce and requesting a JWT from the Identity service
@@ -39,10 +41,11 @@ export default class SessionIssue extends Command {
      * 
      * Process:
      * 1. Parse and validate command flags (did, aud, and nonce are required)
-     * 2. TODO: Sign the nonce with local private key
-     * 3. Send POST request to /v1/session/issue endpoint
-     * 4. Store the received JWT in the session file
-     * 5. Output session details
+     * 2. Load the private key from ~/.registryaccord/key.json
+     * 3. Sign the nonce with the private key
+     * 4. Send POST request to /v1/session/issue endpoint
+     * 5. Store the received JWT in the session file
+     * 6. Output session details
      */
     async run(): Promise<void> {
         const { flags } = await this.parse(SessionIssue)
@@ -84,6 +87,26 @@ export default class SessionIssue extends Command {
             })
         }
         
+        // Load the private key
+        const key = await loadKey()
+        if (!key) {
+            this.error('No identity key found. Run `ra identity:create` first.', {
+                code: 'MISSING_KEY',
+                exit: 2, // validation/usage error
+            })
+        }
+        
+        // Verify the key matches the provided DID
+        if (key.did !== flags.did) {
+            this.error('Loaded key DID does not match provided DID', {
+                code: 'DID_MISMATCH',
+                exit: 2, // validation/usage error
+            })
+        }
+        
+        // Sign the nonce with the private key
+        const signature = await signMessage(flags.nonce, key.secretKeyBase64)
+        
         const bases = resolveBases({ identityBase: flags.identityBase })
         const url = joinURL(bases.identityBase, '/v1/session/issue')
         
@@ -91,15 +114,11 @@ export default class SessionIssue extends Command {
             this.log('[debug] Starting session issue request')
         }
         
-        // TODO: Implement local key signing before sending request
-        // In a real implementation, we would:
-        // 1. Load the private key from ~/.registryaccord/key.json
-        // 2. Sign the nonce with the private key
-        // 3. Include the signature in the request
         const requestBody: SessionIssueRequest = {
             did: flags.did,
             aud: flags.aud,
-            nonce: flags.nonce
+            nonce: flags.nonce,
+            signature: signature
         }
         
         if (flags.verbose) {
